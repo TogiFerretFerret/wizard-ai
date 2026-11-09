@@ -11,11 +11,11 @@ from concurrent.futures import ProcessPoolExecutor
 from bots import HeuristicBot, MCTSBot, RandomBot
 from engine import Bot, WizardGame
 
-BUILTIN = ("random", "heuristic", "mcts[:ITERS]")
+BUILTIN = ("random", "heuristic", "mcts[:ITERS]", "net[:MODEL.npz][:SIMS]")
 
 
 def load_bot(spec: str) -> Bot:
-    """random | heuristic | mcts[:N] | path/to/file.py | path/to/file.py:ClassName"""
+    """random | heuristic | mcts[:N] | net[:model.npz][:N] | path/to/file.py[:ClassName]"""
     if spec == "random":
         return RandomBot()
     if spec == "heuristic":
@@ -23,6 +23,12 @@ def load_bot(spec: str) -> Bot:
     if spec.startswith("mcts"):
         _, _, it = spec.partition(":")
         return MCTSBot(iterations=int(it or 200))
+    if spec == "net" or spec.startswith("net:"):
+        from netbot import NetBot
+        parts = spec.split(":")[1:]
+        model = next((x for x in parts if x.endswith(".npz")), None)
+        sims = next((int(x) for x in parts if x.isdigit()), None)
+        return NetBot(model=model, sims=sims)
     path, cls = (spec.rsplit(":", 1) if spec.count(":") and not spec.endswith(".py") else (spec, None))
     if not path.endswith(".py") or not os.path.exists(path):
         raise SystemExit(f"Can't find bot {spec!r}. Use one of {BUILTIN} or a path like players/alice.py")

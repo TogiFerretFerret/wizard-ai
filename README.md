@@ -31,7 +31,9 @@ python tournament.py mcts:100 heuristic heuristic random --watch --rounds 3   # 
 | `bots.py` | `RandomBot`, `HeuristicBot`, `MCTSBot` (Information-Set MCTS) |
 | `features.py` | Observation → 346-float vector, plus a 66-action index space |
 | `train.py` | AlphaZero loop: self-play on all CPU cores → train policy/value net (GPU if available) → evaluate |
-| `netbot.py` | Net-guided search bot that loads `models/latest.npz` |
+| `netbot.py` | Net-guided search bot. Use it as `net[:models/best.npz][:SIMS]` in any bot spec |
+| `dashboard.py` | Live terminal dashboard for a training run (`--once` for a snapshot) |
+| `models/best.npz` | The trained policy/value net (3.4 MB) |
 | `selfplay.py` | Standalone self-play data dump (`.npz`) for your own training experiments |
 | `test_rules.py` | Rule tests |
 
@@ -56,7 +58,29 @@ AlphaZero assumes perfect information and two players. Wizard has **hidden hands
 
 ## Benchmarks to beat
 
-Example run: `mcts:200` vs 3× `heuristic`, full game → MCTS averaged **255** vs about **95** and won 75% (only 4 games, so the numbers are noisy).
+All tables are 4 players over 10-round games, with seats rotated.
+
+| matchup | result |
+|---|---|
+| `mcts:200` vs 3× `heuristic` | MCTS averages ~189, heuristics ~98 |
+| `net:models/best.npz` (NetBot-200) vs `mcts:200` + 2× `heuristic` | NetBot **198.0** vs MCTS **184.3** (+13.8 over 96 games) |
+
+The trained model in `models/best.npz` came from a run that was stopped early. The bootstrap used 4096 games of plain ISMCTS self-play; after that, 2 of 10 net-guided iterations finished (about 1 hour on an i9-13900HX plus an RTX 4080 Laptop). Each eval line has about ±15 points of noise, so read "NetBot ≈ MCTS-200, maybe slightly better" rather than a decisive win. Try it:
+
+```bash
+python tournament.py net:models/best.npz mcts:200 heuristic heuristic --deals 16
+python play.py human net:models/best.npz mcts:200 heuristic      # play against it
+```
+
+### Training it yourself
+
+```bash
+python -m venv .venv && .venv/bin/pip install numpy torch
+.venv/bin/python train.py            # bootstrap + 10 iterations (~5 h on 32 threads; mostly CPU self-play)
+.venv/bin/python train.py --resume   # continue after stopping (reuses models/bootstrap.npz + latest.npz)
+.venv/bin/python train.py --quick    # 5-minute smoke test
+python dashboard.py                  # live TUI: progress, ETA, NetBot-vs-MCTS chart, CPU/GPU
+```
 
 ## Ideas for your bot
 
