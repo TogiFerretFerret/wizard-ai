@@ -1,6 +1,6 @@
 """Turn an Observation into a fixed-size vector for a neural net, and map actions to indices.
 
-Action space (66): indices 0..13 = bids 0..13, indices 14..65 = cards 0..51.
+Action space (66): indices 0..13 = bids 0..13 (only 0..10 used in a 10-round game), indices 14..65 = cards 0..51.
 Seats are encoded *relative to you* (0 = me, 1 = next player, ...) so the net is seat-invariant.
 """
 import numpy as np
@@ -41,7 +41,7 @@ def encode(obs: Observation) -> np.ndarray:
         won[rel(p)] = obs.tricks_won[p] / nc
         for s in obs.voids[p]:
             voids[rel(p), s] = 1
-    misc = np.array([obs.n_cards / 13, float(obs.phase == "bid"), rel(obs.dealer) / n,
+    misc = np.array([obs.n_cards / 10, float(obs.phase == "bid"), rel(obs.dealer) / n,
                      len(obs.trick) / n, sum(b or 0 for b in obs.bids) / nc])
     return np.concatenate([hand, played, trick.ravel(), trump, bids, won, voids.ravel(), misc]).astype(np.float32)
 

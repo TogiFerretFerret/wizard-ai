@@ -1,6 +1,6 @@
-"""Template for your own bot. Copy to <yourname>.py and go wild.
+"""Template for your own bot. Copy to players/<yourname>.py and go wild.
 
-Run it:  python tournament.py my_bot.py:MyBot heuristic heuristic mcts:200
+Run it:  python challenge.py players/<yourname>.py
 """
 from engine import Bot, Observation, card_str, determinize, is_wizard, is_jester, rank, suit, trick_winner
 

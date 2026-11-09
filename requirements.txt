@@ -1,0 +1,2 @@
+numpy        # features.py, selfplay.py, netbot.py
+torch        # train.py only (GPU optional)

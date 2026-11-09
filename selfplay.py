@@ -14,7 +14,7 @@ import random
 import numpy as np
 
 from bots import ismcts
-from engine import DECK, RoundState
+from engine import DECK, N_ROUNDS, RoundState
 from features import N_ACTIONS, action_index, encode
 
 
@@ -52,7 +52,7 @@ def main():
     rng = random.Random(a.seed)
     data = []
     for g in range(a.games):
-        for n_cards in range(1, 14):
+        for n_cards in range(1, N_ROUNDS + 1):
             data += selfplay_round(n_cards, rng, a.iters)
         print(f"game {g + 1}/{a.games}: {len(data)} samples")
     X, P, Z = map(np.stack, zip(*data))

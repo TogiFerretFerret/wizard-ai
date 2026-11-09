@@ -3,8 +3,8 @@
 Rules (from the club spec):
   * Standard 52-card deck. Aces = Wizards (always win), 2s = Jesters (always lose).
     3..K are standard cards in four suits.
-  * Round r deals r cards to each player. With 4 players there are 13 rounds.
-  * Next card of the deck sets trump. Wizard/Jester (or no card left) => no trump.
+  * Round r deals r cards to each player. A game is 10 rounds.
+  * Next card of the deck sets trump. Wizard/Jester => no trump.
   * Bidding starts left of the dealer. "Screw the dealer": the dealer (last bidder)
     may not bid a number that makes total bids == cards dealt.
   * Player left of the dealer leads the first trick; trick winner leads the next.
@@ -23,12 +23,14 @@ Cards are ints 0..51: suit = c // 13, rank = c % 13 + 2  (2 = Jester, 14 = Ace =
 from __future__ import annotations
 
 import random
+import time
 from dataclasses import dataclass, field
 
 SUIT_CHARS = "SHDC"
 SUIT_SYMBOLS = "♠♥♦♣"
 RANK_CHARS = {11: "J", 12: "Q", 13: "K", 14: "A"}
 DECK = tuple(range(52))
+N_ROUNDS = 10  # club rule: a game is 10 rounds
 
 
 def suit(c: int) -> int:
@@ -55,9 +57,9 @@ def card_str(c: int | None) -> str:
     if c is None:
         return "--"
     if is_wizard(c):
-        return "W" + SUIT_SYMBOLS[suit(c)]
+        return "Wiz" + SUIT_SYMBOLS[suit(c)]
     if is_jester(c):
-        return "J" + SUIT_SYMBOLS[suit(c)]
+        return "Jes" + SUIT_SYMBOLS[suit(c)]
     r = rank(c)
     return RANK_CHARS.get(r, str(r)) + SUIT_SYMBOLS[suit(c)]
 
@@ -317,6 +319,10 @@ class Bot:
     def new_game(self, seat: int, n_players: int) -> None:
         """Optional hook called before each game."""
 
+    def round_over(self, final_state: "RoundState", round_scores: list[int],
+                   totals_before: list[int]) -> None:
+        """Optional hook called after each round (all hands are revealed in final_state.history)."""
+
 
 class WizardGame:
     def __init__(self, bots: list[Bot], seed: int | None = None, rules: Rules = Rules(),
@@ -326,10 +332,12 @@ class WizardGame:
         self.n = len(bots)
         self.rng = random.Random(seed)
         self.rules = rules
-        self.n_rounds = n_rounds or 52 // self.n
+        self.n_rounds = min(n_rounds or N_ROUNDS, 52 // self.n)
         self.verbose = verbose
         self.scores = [0] * self.n
         self.round_log: list[dict] = []
+        self.think_time = [0.0] * self.n   # seconds each seat spent deciding
+        self.decisions = [0] * self.n
 
     def log(self, *a):
         if self.verbose:
@@ -357,7 +365,10 @@ class WizardGame:
             p = s.to_move
             obs = s.observe(p, game_scores=self.scores[:], round_index=r,
                             n_rounds=self.n_rounds)
+            t0 = time.perf_counter()
             a = self.bots[p].act(obs)
+            self.think_time[p] += time.perf_counter() - t0
+            self.decisions[p] += 1
             if a not in obs.legal_actions:
                 raise ValueError(f"{self.bots[p].name} (P{p}) made illegal move {a!r} "
                                  f"in phase {s.phase}; legal: {obs.legal_actions}")
@@ -368,6 +379,8 @@ class WizardGame:
                          f"  -> P{trick_winner(s.trick + [(p, a)], s.trump, self.rules)} wins"))
             s.apply(a)
         rs = s.scores()
+        for b in self.bots:
+            b.round_over(s, rs, self.scores[:])
         for p in range(self.n):
             self.scores[p] += rs[p]
         self.round_log.append({"round": r, "bids": s.bids, "won": s.tricks_won, "scores": rs})

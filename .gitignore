@@ -1,2 +1,6 @@
 __pycache__/
 *.npz
+!models/latest.npz
+.venv/
+LEADERBOARD.md
+models/log.tsv

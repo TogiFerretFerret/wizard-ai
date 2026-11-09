@@ -4,34 +4,41 @@ Build an AI that plays **Wizard** (club house rules), then pit everyone's bots a
 
 The plan is roughly **AlphaZero for a hidden-information card game**: Monte Carlo tree search, then reinforcement learning to make the search smarter.
 
-## Quick start (Python 3.10+, numpy)
+**Running a club session? Start with [ACTIVITY.md](ACTIVITY.md).** It's a four-meeting plan.
+
+## Quick start (Python 3.10+, no installs needed except for the neural net)
 
 ```bash
-python test_rules.py                                   # check the rules engine
-python tournament.py mcts:200 heuristic heuristic random --games 4
-python tournament.py mcts:100 heuristic heuristic heuristic --games 1 --rounds 3 --verbose
-cp my_bot.py alice.py                                  # start your own bot
-python tournament.py alice.py:MyBot bob.py:MyBot carol.py:MyBot dan.py:MyBot --games 20
+python play.py                                  # play against the bots (type ? for an AI hint)
+python play.py human human human human --names Ana Ben Cy Dee   # pass-and-play
+cp players/_template.py players/alice.py        # write your own bot
+python challenge.py players/alice.py            # climb the 4-level ladder
+python league.py                                # everyone in players/ vs everyone -> LEADERBOARD.md
+python tournament.py players/alice.py mcts:200 heuristic heuristic   # one custom table
+python tournament.py mcts:100 heuristic heuristic random --watch --rounds 3   # watch every move
 ```
-
-Seats rotate, and every rotation uses the same deals, so a lucky seat or a lucky hand doesn't decide the result.
 
 ## Files
 
 | file | what it is |
 |---|---|
-| `engine.py` | Rules, `RoundState` (a full state you can copy and simulate), `Observation` (what a bot sees), `determinize()`, and the `Bot` base class |
+| `play.py` | Play in the terminal against bots or friends, with `?` hints from MCTS |
+| `challenge.py` | Ladder: Apprentice → Journeyman → Adept → Archmage |
+| `league.py` | Round-robin of every bot in `players/`. Ranked by score margin vs table average |
+| `tournament.py` | One table of 3–6 bots, seat-rotated |
+| `players/` | Put your bot here. `_template.py` to copy, `example_greedy.py` to beat |
+| `engine.py` | Rules, `RoundState` (copyable full state for search), `Observation` (what a bot sees), `determinize()` |
 | `bots.py` | `RandomBot`, `HeuristicBot`, `MCTSBot` (Information-Set MCTS) |
-| `tournament.py` | Bot-vs-bot arena. Load built-in bots or `file.py:ClassName` |
-| `my_bot.py` | Template to copy |
-| `features.py` | Observation → 346-float vector, plus the 66-action index space for neural nets |
-| `selfplay.py` | Generates `(state, MCTS policy, outcome)` training data. This is step 1 of the AlphaZero loop |
+| `features.py` | Observation → 346-float vector, plus a 66-action index space |
+| `train.py` | AlphaZero loop: self-play on all CPU cores → train policy/value net (GPU if available) → evaluate |
+| `netbot.py` | Net-guided search bot that loads `models/latest.npz` |
+| `selfplay.py` | Standalone self-play data dump (`.npz`) for your own training experiments |
 | `test_rules.py` | Rule tests |
 
 ## House rules
 
 - Standard 52-card deck. **Aces = Wizards** (always win). **2s = Jesters** (always lose). 3–K are normal cards.
-- Round *r* deals *r* cards. With 4 players that's 13 rounds. The next card in the deck sets trump. If it's a Wizard or Jester, or no card is left, there's no trump.
+- A game is **10 rounds**. Round *r* deals *r* cards. The next card in the deck sets trump. If it's a Wizard or Jester, there's no trump.
 - **Screw the dealer:** total bids can't equal the number of cards dealt. The dealer bids last and is forced to break the tie.
 - You must follow the suit that was led if you can. You can always play a Wizard or a Jester.
 - **Who wins a trick:** the first Wizard. Otherwise the highest trump. Otherwise the highest card of the suit that was led. If every card is a Jester, the **last** Jester wins. If a Jester leads, the first normal card played sets the suit.
